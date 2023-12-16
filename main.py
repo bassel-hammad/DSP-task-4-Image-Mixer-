@@ -1,6 +1,19 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+from image import  Image
+from PyQt5 import QtWidgets, QtGui, QtCore
+import cv2
+import numpy as np
 
+
+class DoubleClickWidget(QtWidgets.QWidget):
+    doubleClicked = QtCore.pyqtSignal()
+
+    def mouseDoubleClickEvent(self, event):
+        self.doubleClicked.emit()
+        super(DoubleClickWidget, self).mouseDoubleClickEvent(event)
+
+    
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -13,12 +26,19 @@ class Ui_MainWindow(object):
         self.tabWidget.setObjectName("tabWidget")
         self.inputTab = QtWidgets.QWidget()
         self.inputTab.setObjectName("inputTab")
-        self.verticalLayoutWidget = QtWidgets.QWidget(self.inputTab)
-        self.verticalLayoutWidget.setGeometry(QtCore.QRect(0, 30, 271, 221))
-        self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
+        # self.verticalLayoutWidget = QtWidgets.QWidget(self.inputTab)
+        # self.verticalLayoutWidget.setGeometry(QtCore.QRect(0, 30, 271, 221))
+        # self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
+        # self.verticalLayoutWidget.setStyleSheet("background-color: lightblue;")
+        self.createImageLayouts()
         self.imgLayout1 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget)
         self.imgLayout1.setContentsMargins(0, 0, 0, 0)
         self.imgLayout1.setObjectName("imgLayout1")
+        
+        
+
+        # Set background color for the verticalLayoutWidget
+        
         self.label = QtWidgets.QLabel(self.inputTab)
         self.label.setGeometry(QtCore.QRect(0, 0, 81, 21))
         self.label.setObjectName("label")
@@ -101,21 +121,12 @@ class Ui_MainWindow(object):
         self.componentLayout1 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_5)
         self.componentLayout1.setContentsMargins(0, 0, 0, 0)
         self.componentLayout1.setObjectName("componentLayout1")
-        self.verticalLayoutWidget_2 = QtWidgets.QWidget(self.inputTab)
-        self.verticalLayoutWidget_2.setGeometry(QtCore.QRect(570, 30, 271, 221))
-        self.verticalLayoutWidget_2.setObjectName("verticalLayoutWidget_2")
         self.imgLayout2 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_2)
         self.imgLayout2.setContentsMargins(0, 0, 0, 0)
         self.imgLayout2.setObjectName("imgLayout2")
-        self.verticalLayoutWidget_3 = QtWidgets.QWidget(self.inputTab)
-        self.verticalLayoutWidget_3.setGeometry(QtCore.QRect(0, 320, 271, 221))
-        self.verticalLayoutWidget_3.setObjectName("verticalLayoutWidget_3")
         self.imgLayout3 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_3)
         self.imgLayout3.setContentsMargins(0, 0, 0, 0)
         self.imgLayout3.setObjectName("imgLayout3")
-        self.verticalLayoutWidget_4 = QtWidgets.QWidget(self.inputTab)
-        self.verticalLayoutWidget_4.setGeometry(QtCore.QRect(570, 320, 271, 221))
-        self.verticalLayoutWidget_4.setObjectName("verticalLayoutWidget_4")
         self.imgLayout4 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_4)
         self.imgLayout4.setContentsMargins(0, 0, 0, 0)
         self.imgLayout4.setObjectName("imgLayout4")
@@ -271,6 +282,75 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+
+    def createImageLayouts(self):
+        self.verticalLayoutWidget = DoubleClickWidget(self.centralwidget)
+        self.verticalLayoutWidget.setGeometry(QtCore.QRect(0, 30, 271, 221))
+        self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
+        
+        self.verticalLayoutWidget_2 =DoubleClickWidget(self.centralwidget)
+        self.verticalLayoutWidget_2.setGeometry(QtCore.QRect(570, 30, 271, 221))
+        self.verticalLayoutWidget_2.setObjectName("verticalLayoutWidget_2")
+
+        self.verticalLayoutWidget_3 = DoubleClickWidget(self.centralwidget)
+        self.verticalLayoutWidget_3.setGeometry(QtCore.QRect(0, 320, 271, 221))
+        self.verticalLayoutWidget_3.setObjectName("verticalLayoutWidget_3")
+        
+        self.verticalLayoutWidget_4 = DoubleClickWidget(self.centralwidget)
+        self.verticalLayoutWidget_4.setGeometry(QtCore.QRect(570, 320, 271, 221))
+        self.verticalLayoutWidget_4.setObjectName("verticalLayoutWidget_4")
+        
+
+        # Set background color for the verticalLayoutWidget
+        
+
+        # Connect the doubleClicked signal to onDoubleClick
+        self.verticalLayoutWidget.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout1))
+        self.verticalLayoutWidget_2.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout2))
+        self.verticalLayoutWidget_3.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout3))
+        self.verticalLayoutWidget_4.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout4))
+       
+
+        
+
+    def onDoubleClick(self, imgLayout):
+        options = QtWidgets.QFileDialog.Options()
+        options |= QtWidgets.QFileDialog.ReadOnly
+        image_path, _ = QtWidgets.QFileDialog.getOpenFileName(None, "Open Image File", "", "Images (*.png *.xpm *.jpg *.bmp *.gif)", options=options)
+
+        if image_path:
+            # Clear previous content in the imgLayout
+            for i in reversed(range(imgLayout.count())):
+                widgetToRemove = imgLayout.itemAt(i).widget()
+                # remove it from the layout list
+                imgLayout.removeWidget(widgetToRemove)
+                # remove it from the GUI
+                widgetToRemove.setParent(None)
+
+            image = Image(image_path)
+            original_image = QtGui.QImage(image.original_image.data, image.size[1], image.size[0], image.size[1], QtGui.QImage.Format_Grayscale8)
+            pixmap = QtGui.QPixmap.fromImage(original_image)
+
+            # Get the dimensions of the imgLayout
+            layout_width = imgLayout.geometry().width()
+            layout_height = imgLayout.geometry().height()
+
+            # Scale the image to fit within the imgLayout
+            scaled_pixmap = pixmap.scaled(layout_width, int(layout_height*0.8), QtCore.Qt.KeepAspectRatio)
+
+            # Add the new image to the imgLayout
+            label = QtWidgets.QLabel()
+            label.setPixmap(scaled_pixmap)
+            imgLayout.addWidget(label)
+
+
+    # def array_to_pixmap(self, array):
+    #     height, width = array.shape
+    #     qimage = QtGui.QImage(array.data.tobytes(), width, height, width, QtGui.QImage.Format_Grayscale8)
+    #     pixmap = QtGui.QPixmap.fromImage(qimage)
+    #     return pixmap
+
+
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
