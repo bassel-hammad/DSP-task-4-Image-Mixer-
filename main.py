@@ -4,6 +4,8 @@ from image import  Image
 from PyQt5 import QtWidgets, QtGui, QtCore
 import cv2
 import numpy as np
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 
 
 class DoubleClickWidget(QtWidgets.QWidget):
@@ -283,6 +285,24 @@ class Ui_MainWindow(object):
         self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
+
+
+
+        ####adding canvas to plot selected components################
+        self.fig = Figure(figsize=(3, 3), dpi=100)
+        self.canvas_componentLayout1 = FigureCanvas(self.fig)
+        self.axes_componentLayout1 = self.fig.add_subplot(111)
+        self.componentLayout1.addWidget(self.canvas_componentLayout1)
+        self.axes_componentLayout1.axis('off')
+        #we must do this for 4 figures
+        #############################################################
+
+
+
+        ##########EMITTED SIGNALS FROM WIDGETS######################
+        #self.comboBox1.currentTextChanged(self.image1.select_plotted_component)
+
+
     def createImageLayouts(self):
         self.verticalLayoutWidget = DoubleClickWidget(self.centralwidget)
         self.verticalLayoutWidget.setGeometry(QtCore.QRect(0, 30, 271, 221))
@@ -342,6 +362,16 @@ class Ui_MainWindow(object):
             label = QtWidgets.QLabel()
             label.setPixmap(scaled_pixmap)
             imgLayout.addWidget(label)
+            print("done")
+
+            #I ADD axes component Layout 1 TO TRYING , WE MUST CORRECT IT AS SOON AS POSSIBLE
+            image.set_component_viewer(self.axes_componentLayout1,self.canvas_componentLayout1)
+            ##################################################################################
+            
+
+
+            #SET THE FFT COMPONENT VIEWER TO IMAGE CLASS
+            
 
 
     # def array_to_pixmap(self, array):
