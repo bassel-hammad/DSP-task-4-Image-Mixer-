@@ -60,6 +60,7 @@ class Image:
         self.axes_component=axes_component
         self.canvas_component=canvas_component
         self.canvas_component.draw()
+        #self.select_plotted_component("Magnitude")
 
     def select_plotted_component(self , component=""):
         if(component=="Magnitude"):
@@ -68,9 +69,8 @@ class Image:
             # calculate the magnitude of the Fourier Transform
             magnitude_spectrum = 20 * np.log(np.abs(fourier_shift))
             self.axes_component.imshow(magnitude_spectrum, cmap='gray')
-            self.axes_component.title('Magnitude Spectrum')
             self.axes_component.axis('off')
-            self.axes_component.show()
+            self.canvas_component.draw()
 
 
 
