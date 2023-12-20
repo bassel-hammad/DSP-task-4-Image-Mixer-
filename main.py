@@ -1,15 +1,18 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from image import  Image
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QFileDialog, QVBoxLayout, QPushButton, QWidget
 from PyQt5 import QtWidgets, QtGui, QtCore
+import matplotlib.pyplot as plt
+from PIL import Image as PILImage
 import cv2
 import numpy as np
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
 
 
 class DoubleClickWidget(QtWidgets.QWidget):
     doubleClicked = QtCore.pyqtSignal()
+  
+
 
     def mouseDoubleClickEvent(self, event):
         self.doubleClicked.emit()
@@ -66,6 +69,7 @@ class Ui_MainWindow(object):
         self.componentSlider1.setGeometry(QtCore.QRect(130, 260, 351, 22))
         self.componentSlider1.setOrientation(QtCore.Qt.Horizontal)
         self.componentSlider1.setObjectName("componentSlider1")
+        
         self.lcdNumber = QtWidgets.QLCDNumber(self.inputTab)
         self.lcdNumber.setGeometry(QtCore.QRect(490, 260, 51, 23))
         self.lcdNumber.setObjectName("lcdNumber")
@@ -254,6 +258,7 @@ class Ui_MainWindow(object):
         self.verticalLayoutWidget_10 = QtWidgets.QWidget(self.outputTab)
         self.verticalLayoutWidget_10.setGeometry(QtCore.QRect(550, 50, 561, 521))
         self.verticalLayoutWidget_10.setObjectName("verticalLayoutWidget_10")
+        self.verticalLayoutWidget_9.setStyleSheet("background-color: lightblue;")
         self.windowLayout2 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_10)
         self.windowLayout2.setContentsMargins(0, 0, 0, 0)
         self.windowLayout2.setObjectName("windowLayout2")
@@ -285,93 +290,221 @@ class Ui_MainWindow(object):
         self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
+        for i in range(1, 5):
+            slider_name = f"componentSlider{i}"
+            slider_instance = getattr(self, slider_name, None)
+            comboBox = f"comboBox{i}"
+            comboBox_instance = getattr(self, comboBox, None)
+            currentmod = comboBox_instance.currentText()
+
+
+            if slider_instance is not None:
+                slider_instance.setRange(0,100)
+                slider_instance.setValue(50)
+                slider_instance.valueChanged.connect(lambda value, range=i: self.changecomponent(value, range,currentmod))
+    
+    # def changecomponent(self, value, range, currentmod):
+    #     for image in self.arrayofimages:
+    #         if image.get_tab_number == range:
 
 
 
-        ####adding canvas to plot selected components################
-        self.fig = Figure(figsize=(3, 3), dpi=100)
-        self.canvas_componentLayout1 = FigureCanvas(self.fig)
-        self.axes_componentLayout1 = self.fig.add_subplot(111)
-        self.componentLayout1.addWidget(self.canvas_componentLayout1)
-        self.axes_componentLayout1.axis('off')
-        #we must do this for 4 figures
-        #############################################################
+
+    def reconstruct_image(self, magnitude, phase):
+        # Combine magnitude, real, and imaginary components to get the complex Fourier representation
+        complex_image = magnitude * (np.cos(phase) + 1j * np.sin(phase))
+
+        # Apply the inverse Fourier transform
+        inverse_image = np.fft.ifft2(np.fft.ifftshift(complex_image)).real
+
+        # Normalize the pixel values to the range [0, 255]
+        reconstructed_image = cv2.normalize(inverse_image, None, 0, 255, cv2.NORM_MINMAX)
+
+        image = reconstructed_image.astype(np.uint8)
+        cv2.imshow('Reconstructed Image', inverse_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+    
+    def reconstruct_image_real_imag(self,real_part, imag_part):
+        # Combine real and imaginary parts to get complex Fourier coefficients
+        fourier_coefficients = real_part + 1j * imag_part
+
+
+        # Perform inverse Fourier transform to get the image
+        recovered_image = np.fft.ifft2(np.fft.ifftshift(fourier_coefficients))
+
+        # Display the recovered image, Fourier Magnitude, and Phase
+        plt.figure(figsize=(15, 4))
+
+        # Display Real Part
+        plt.subplot(1, 4, 1)
+        plt.imshow(np.real(fourier_coefficients), cmap='gray')
+        plt.title('Real Part')
+
+        # Display Imaginary Part
+        plt.subplot(1, 4, 2)
+        plt.imshow(np.imag(fourier_coefficients), cmap='gray')
+        plt.title('Imaginary Part')
+
+        # Display Magnitude Spectrum (log scale)
+        plt.subplot(1, 4, 3)
+        magnitude_spectrum = np.abs(fourier_coefficients)
+        plt.imshow(np.log(1 + magnitude_spectrum), cmap='gray')
+        plt.title('Fourier Magnitude (Log Scale)')
+
+        # Display Recovered Image
+        plt.subplot(1, 4, 4)
+        plt.imshow(np.abs(recovered_image), cmap='gray', vmin=0, vmax=1)  # Adjust visualization range
+        plt.title('Recovered Image')
+
+        plt.show()
 
 
 
-        ##########EMITTED SIGNALS FROM WIDGETS######################
-        #self.comboBox1.currentTextChanged(self.image1.select_plotted_component)
+        
+    
+    def onComboBoxValueChanged(self, text,imagelayout,image):
+        component_image = image.get_component_images(text)
+        # Set the desired size of the image
+        desired_size = (300, 200)
+            
+            # Resize the image using the 'resize' method
+        finalimage = component_image.resize(desired_size)
+        
 
+        existing_widget = imagelayout.itemAt(0)
+        if existing_widget:
+            widgetToRemove = existing_widget.widget()
+            imagelayout.removeWidget(widgetToRemove)
+            widgetToRemove.setParent(None)
+
+        # Convert the resized image to a QImage
+        qt_image = QtGui.QImage(finalimage.data, finalimage.shape[1], finalimage.shape[0], finalimage.shape[1], QtGui.QImage.Format_Grayscale8)
+
+        # Create a QPixmap with the desired size
+        pixmap = QtGui.QPixmap.fromImage(qt_image)
+
+        # Create a new QLabel for the scaled image
+        label = QLabel()
+        label.setPixmap(pixmap)
+
+        # Add the new QLabel to the imgLayout
+        imagelayout.addWidget(label)
 
     def createImageLayouts(self):
-        self.verticalLayoutWidget = DoubleClickWidget(self.centralwidget)
+        self.verticalLayoutWidget = DoubleClickWidget(self.inputTab)
         self.verticalLayoutWidget.setGeometry(QtCore.QRect(0, 30, 271, 221))
         self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
         
-        self.verticalLayoutWidget_2 =DoubleClickWidget(self.centralwidget)
+        self.verticalLayoutWidget_2 =DoubleClickWidget(self.inputTab)
         self.verticalLayoutWidget_2.setGeometry(QtCore.QRect(570, 30, 271, 221))
         self.verticalLayoutWidget_2.setObjectName("verticalLayoutWidget_2")
 
-        self.verticalLayoutWidget_3 = DoubleClickWidget(self.centralwidget)
+        self.verticalLayoutWidget_3 = DoubleClickWidget(self.inputTab)
         self.verticalLayoutWidget_3.setGeometry(QtCore.QRect(0, 320, 271, 221))
         self.verticalLayoutWidget_3.setObjectName("verticalLayoutWidget_3")
         
-        self.verticalLayoutWidget_4 = DoubleClickWidget(self.centralwidget)
+        self.verticalLayoutWidget_4 = DoubleClickWidget(self.inputTab)
         self.verticalLayoutWidget_4.setGeometry(QtCore.QRect(570, 320, 271, 221))
         self.verticalLayoutWidget_4.setObjectName("verticalLayoutWidget_4")
-        
+         
+        self.arrayofimages=[]
 
         # Set background color for the verticalLayoutWidget
         
 
-        # Connect the doubleClicked signal to onDoubleClick
-        self.verticalLayoutWidget.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout1))
-        self.verticalLayoutWidget_2.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout2))
-        self.verticalLayoutWidget_3.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout3))
-        self.verticalLayoutWidget_4.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout4))
-       
+        # Connect the doubleClicked signal to onDoubleClic
+
+        self.verticalLayoutWidget.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout1,self.componentLayout1,self.comboBox1,1))
+        self.verticalLayoutWidget_2.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout2,self.componentLayout2,self.comboBox2,2))
+        self.verticalLayoutWidget_3.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout3,self.componentLayout3,self.comboBox3,3))
+        self.verticalLayoutWidget_4.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout4,self.componentLayout4,self.comboBox4,4))
 
         
 
-    def onDoubleClick(self, imgLayout):
+    # def onDoubleClick(self, imgLayout):
+    #     options = QtWidgets.QFileDialog.Options()
+    #     options |= QtWidgets.QFileDialog.ReadOnly
+    #     image_path, _ = QtWidgets.QFileDialog.getOpenFileName(None, "Open Image File", "", "Images (*.png *.xpm *.jpg *.bmp *.gif)", options=options)
+
+    #     if image_path:
+    #         existing_widget = imgLayout.itemAt(0)
+    #         if existing_widget:
+    #             widgetToRemove = existing_widget.widget()
+    #             imgLayout.removeWidget(widgetToRemove)
+    #             widgetToRemove.setParent(None)
+
+    #         image = Image(image_path)
+    #         original_image = QtGui.QImage(image.original_image.data, image.size[1], image.size[0], image.size[1], QtGui.QImage.Format_Grayscale8)
+    #         pixmap = QtGui.QPixmap.fromImage(original_image)
+
+    #         # Get the dimensions of the imgLayout
+    #         layout_width = imgLayout.geometry().width()
+    #         layout_height = imgLayout.geometry().height()
+
+    #         # Scale the image to fit within the imgLayout
+    #         scaled_pixmap = pixmap.scaled(layout_width, int(layout_height*0.8), QtCore.Qt.KeepAspectRatio)
+
+    #         # Add the new image to the imgLayout
+    #         label = QtWidgets.QLabel()
+    #         label.setPixmap(scaled_pixmap)
+    #         imgLayout.addWidget(label)
+    
+    def onDoubleClick(self, imgLayout,imgLayout2,comboBox,index):
         options = QtWidgets.QFileDialog.Options()
         options |= QtWidgets.QFileDialog.ReadOnly
         image_path, _ = QtWidgets.QFileDialog.getOpenFileName(None, "Open Image File", "", "Images (*.png *.xpm *.jpg *.bmp *.gif)", options=options)
 
         if image_path:
-            # Clear previous content in the imgLayout
-            for i in reversed(range(imgLayout.count())):
-                widgetToRemove = imgLayout.itemAt(i).widget()
-                # remove it from the layout list
+            # Check if there is an existing widget in imgLayout and remove it
+            existing_widget = imgLayout.itemAt(0)
+            if existing_widget:
+                widgetToRemove = existing_widget.widget()
                 imgLayout.removeWidget(widgetToRemove)
-                # remove it from the GUI
                 widgetToRemove.setParent(None)
+            # for image in self.arrayofimages:
+            #     if image.get_tab_number()==index:
+            #         self.arrayofimages.pop(image)
 
             image = Image(image_path)
-            original_image = QtGui.QImage(image.original_image.data, image.size[1], image.size[0], image.size[1], QtGui.QImage.Format_Grayscale8)
-            pixmap = QtGui.QPixmap.fromImage(original_image)
+            # self.arrayofimages.append(image)
 
-            # Get the dimensions of the imgLayout
-            layout_width = imgLayout.geometry().width()
-            layout_height = imgLayout.geometry().height()
+            # real = image.get_component("Real",1)
+            # imaginary = image.get_component("Imaginary",1)
+            # self.reconstruct_image_real_imag(real, imaginary)
+            magnitude = image.get_component("Magnitude",1)
+            phase = image.get_component("Phase",1)
+            self.reconstruct_image(phase, magnitude)
 
-            # Scale the image to fit within the imgLayout
-            scaled_pixmap = pixmap.scaled(layout_width, int(layout_height*0.8), QtCore.Qt.KeepAspectRatio)
+                
 
-            # Add the new image to the imgLayout
-            label = QtWidgets.QLabel()
-            label.setPixmap(scaled_pixmap)
+            # Set the desired size of the image
+            desired_size = (300, 200)
+
+            # Resize the image using the 'resize' method
+            resized_image = image.resize(desired_size)
+
+            # Convert the resized image to a QImage
+            qt_image = QtGui.QImage(resized_image.data, resized_image.shape[1], resized_image.shape[0], resized_image.shape[1], QtGui.QImage.Format_Grayscale8)
+
+            # Create a QPixmap with the desired size
+            pixmap = QtGui.QPixmap.fromImage(qt_image)
+
+            # Create a new QLabel for the scaled image
+            label = QLabel()
+            label.setPixmap(pixmap)
+            # Add the new QLabel to the imgLayout
             imgLayout.addWidget(label)
-            print("done")
+            self.onComboBoxValueChanged("Magnitude",imgLayout2,image)
+            comboBox.currentIndexChanged.connect(lambda index: self.onComboBoxValueChanged(comboBox.currentText(), imgLayout2, image))
 
-            #I ADD axes component Layout 1 TO TRYING , WE MUST CORRECT IT AS SOON AS POSSIBLE
-            image.set_component_viewer(self.axes_componentLayout1,self.canvas_componentLayout1)
-            ##################################################################################
             
 
+           
 
-            #SET THE FFT COMPONENT VIEWER TO IMAGE CLASS
-            
+           
+
 
 
     # def array_to_pixmap(self, array):

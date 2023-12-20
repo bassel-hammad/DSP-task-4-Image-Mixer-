@@ -2,75 +2,101 @@
 
 from PyQt5 import QtWidgets, QtGui, QtCore
 import cv2
+from PyQt5.QtGui import QPixmap as qtg
 import numpy as np
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+import matplotlib.pyplot as plt
+
 class Image:
     def __init__(self, path):
         self.path = path
+        self.raw_data = plt.imread(self.path)
         self.original_image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
         self.processed_image = self.original_image.copy()
         self.size = self.original_image.shape[:2]  # (height, width)
+        self.fft = np.fft.fft2(self.raw_data)
+        self.magnitude = np.abs(self.fft)
+        self.phase = np.angle(self.fft)
+        self.real = np.real(self.fft)
+        self.imaginary = np.imag(self.fft)
+        self.components = {
+            '':'',
+            'Magnitude':self.magnitude,
+            'Phase':self.phase,
+            'Real':self.real,
+            'Imaginary': self.imaginary,
+        }
+    def get_tab_number(self):
+        return self.tab_number
 
-        #compute image fft (mag,phase,reaal,img)
-        self.image_fft=self.apply_fourier_transform()
-        self.fft_magnitude=self.get_magnitude(self.image_fft)
-        self.fft_phase=self.get_magnitude(self.image_fft)
-        self.fft_real=self.get_real_component(self.image_fft)
-        self.fft_img=self.get_imaginary_component(self.image_fft)
+    def get_component(self, type: str, ratio: float) -> np.ndarray:
+        if type == "Magnitude":
+            return self.components[type] 
+        elif type == "Phase":
+            return  self.components[type] 
+        elif type == "Real":
+            return self.components[type] 
+        elif type == "Imaginary":
+            return  self.components[type] 
+        elif type =="Uniform Magnitude" :
+            return np.ones(shape=self.shape) * ratio
+        elif type == "Uniform Phase":
+            return np.exp(1j * np.zeros(shape=self.shape) * ratio)
 
-        #CANVAS  FOR  PLOTTING SELECTED COMPONENT OF FFT
-        self.fig = Figure(figsize=(3, 3), dpi=100)
-        self.canvas_component = FigureCanvas(self.fig)
-        fig = Figure(figsize=(3, 3), dpi=100)
-        self.axes_component = fig.add_subplot(111)
-
-    def apply_fourier_transform(self):
-        # Apply Fourier transform to the image
-        fft_image = np.fft.fft2(self.processed_image)
-        return fft_image
-
-    def get_magnitude(self, fft_image):
-        # Compute the magnitude spectrum
-        magnitude_spectrum = np.abs(fft_image)
-        return magnitude_spectrum
-
-    def get_phase(self, fft_image):
-        # Compute the phase spectrum
-        phase_spectrum = np.angle(fft_image)
-        return phase_spectrum
-
-    def get_real_component(self, fft_image):
-        # Compute the real component of the Fourier transform
-        real_component = fft_image.real
-        return real_component
-
-    def get_imaginary_component(self, fft_image):
-        # Compute the imaginary component of the Fourier transform
-        imaginary_component = fft_image.imag
-        return imaginary_component
-
-    def apply_inverse_fourier_transform(self, fft_image):
+    def apply_inverse_fourier_transform(self):
         # Apply inverse Fourier transform to obtain the processed image
-        processed_image = np.fft.ifft2(fft_image).real
+        processed_image = np.fft.ifft2(self).real
         return processed_image
     
-    #pass the canvas for plotting the  selected component to image class
-    def set_component_viewer(self,axes_component,canvas_component):
-        self.axes_component=axes_component
-        self.canvas_component=canvas_component
-        self.canvas_component.draw()
-        #self.select_plotted_component("Magnitude")
+    def mix(*images, types, ratios, mode):
+        if len(images) < 2:
+            raise ValueError("At least two images are required for mixing.")
 
-    def select_plotted_component(self , component=""):
-        if(component=="Magnitude"):
-            # Shift the zero-frequency component to the center of the spectrum
-            fourier_shift = np.fft.fftshift(self.image_fft)
-            # calculate the magnitude of the Fourier Transform
-            magnitude_spectrum = 20 * np.log(np.abs(fourier_shift))
-            self.axes_component.imshow(magnitude_spectrum, cmap='gray')
-            self.axes_component.axis('off')
-            self.canvas_component.draw()
+        components = [image.get_component(type_, ratio) for image, type_, ratio in zip(images, types, ratios)]
 
+        if mode == 'mag-phase':
+            construct = np.real(np.fft.ifft2(np.prod(components)))
+        elif mode == 'real-imag':
+            construct = np.real(np.fft.ifft2(sum(components)))
+        else:
+            raise ValueError("Invalid mode. Supported modes: 'mag-phase', 'real-imag'.")
 
+        if np.max(construct) > 1.0:
+            construct /= np.max(construct)
 
+        plt.imsave('test.png', np.abs(construct))
+        return qtg('test.png')
+
+    def resize(self, desired_size):
+        if self.processed_image is not None and self.processed_image.shape[0] > 0 and self.processed_image.shape[1] > 0:
+            resized_image = cv2.resize(self.processed_image, (desired_size[1], desired_size[0]))
+            return resized_image
+
+    def to_image_object(self, data):
+        # Create a new Image instance from the given data
+        img = Image(self.path)
+        img.processed_image = data
+        return img
+    
+    def get_component_images(self, type: str,):
+            component = self.get_component(type,1)
+            component_image = self.to_image_object(component)
+            return component_image
+
+    
+    def is_imaginary_component_of(self, other_image):   # Resize images to a common size
+        target_size = (max(self.original_image.shape[0], other_image.original_image.shape[0]),
+                    max(self.original_image.shape[1], other_image.original_image.shape[1]))
+
+        resized_self = cv2.resize(self.original_image, target_size)
+        resized_other = cv2.resize(other_image.original_image, target_size)
+
+        # Apply Fourier transform to the resized images
+        fft_image_self = np.fft.fft2(resized_self)
+        fft_image_other = np.fft.fft2(resized_other)
+
+        # Extract the imaginary component
+        imaginary_self = np.fft.fftshift(fft_image_self).imag
+        imaginary_other = np.fft.fftshift(fft_image_other).imag
+
+        # You may want to use a suitable comparison method based on your needs
+        return np.array_equal(imaginary_self, imaginary_other)
