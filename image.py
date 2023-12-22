@@ -9,15 +9,18 @@ import matplotlib.pyplot as plt
 class Image:
     def __init__(self, path):
         self.path = path
-        self.raw_data = plt.imread(self.path)
+        self.image_data = plt.imread(self.path)
+        self.image_data =self.image_data[:,:,0]
         self.original_image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
         self.processed_image = self.original_image.copy()
         self.size = self.original_image.shape[:2]  # (height, width)
-        self.fft = np.fft.fft2(self.raw_data)
+        ##FFT COMPONENTS
+        self.fft = np.fft.fft2(self.image_data)
         self.magnitude = np.abs(self.fft)
         self.phase = np.angle(self.fft)
         self.real = np.real(self.fft)
         self.imaginary = np.imag(self.fft)
+
         self.components = {
             '':'',
             'Magnitude':self.magnitude,
@@ -100,3 +103,32 @@ class Image:
 
         # You may want to use a suitable comparison method based on your needs
         return np.array_equal(imaginary_self, imaginary_other)
+    
+
+
+
+
+    def mix_and_reconstruct(mode,components_p_1,image_1,components_p_2,image_2,components_p_3,image_3,components_p_4,image_4):
+        denominator_for_comp_1 =components_p_1[0]+components_p_2[0]+components_p_3[0]+components_p_4[0]
+        ratio__for_comp_1=[x//denominator_for_comp_1 for x in [components_p_1[0] , components_p_2 [0], components_p_3 [0], components_p_4[0]]]
+        denominator_for_comp_2 =components_p_1[1]+components_p_2[1]+components_p_3[1]+components_p_4[1]
+        ratio__for_comp_2=[x//denominator_for_comp_2 for x in [components_p_1[1] , components_p_2 [1], components_p_3 [1], components_p_4[1]]]
+
+        if(mode=="real-imag"):
+            real_part=ratio__for_comp_1[0]*image_1.real + ratio__for_comp_1[1]*image_2.real  + ratio__for_comp_1[2]*image_3.real + ratio__for_comp_1[3]*image_4.real
+            imag_part=ratio__for_comp_2[0]*image_1.imaginary + ratio__for_comp_2[1]*image_2.imaginary  + ratio__for_comp_2[2]*image_3.imaginary + ratio__for_comp_2[3]*image_4.imaginary
+            img_fft=real_part+ 1j *(imag_part)
+            img_fftshift = np.fft.fftshift(img_fft)
+            img_ifftshit = np.fft.ifftshift(img_fftshift)
+            reconstrucuted_image = np.fft.ifft2(img_ifftshit)
+            #self.axes_component.imshow(np.abs(reconstrucuted_image), cmap="gray")
+        else:
+            magnitude=ratio__for_comp_1[0]*image_1.magnitude + ratio__for_comp_1[1]*image_2.magnitude  + ratio__for_comp_1[2]*image_3.magnitude + ratio__for_comp_1[3]*image_4.magnitude
+            phase=ratio__for_comp_2[0]*image_1.phase + ratio__for_comp_2[1]*image_2.phase  + ratio__for_comp_2[2]*image_3.phase + ratio__for_comp_2[3]*image_4.phase
+            img_fft=magnitude * np.exp(1j * phase)
+            reconstrucuted_image=np.fft.ifft2(img_fft)
+            #self.axes_component.imshow(np.abs(reconstrucuted_image), cmap="gray")
+            
+
+
+
