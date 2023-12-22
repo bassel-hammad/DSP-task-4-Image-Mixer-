@@ -1,6 +1,7 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from image import  Image
+from image import  mix_and_reconstruct
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QFileDialog, QVBoxLayout, QPushButton, QWidget
 from PyQt5 import QtWidgets, QtGui, QtCore
 import matplotlib.pyplot as plt
@@ -290,6 +291,19 @@ class Ui_MainWindow(object):
         self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
+
+        # Add a button
+        self.MixButton = QtWidgets.QPushButton(self.centralwidget)
+        self.MixButton.setGeometry(QtCore.QRect(10, 780, 111, 31))
+        self.MixButton.setObjectName("pushButton")
+        self.MixButton.setText("Mix")
+
+        self.MixButton.clicked.connect(lambda: mix_and_reconstruct(self.mixingComboBox.currentText(),self.image_1_weights,self.image_1,self.image_2_weights,self.image_2,self.image_3_weights,self.image_3,self.image_4_weights,self.image_4))
+
+
+
+        
+        '''
         for i in range(1, 5):
             slider_name = f"componentSlider{i}"
             slider_instance = getattr(self, slider_name, None)
@@ -302,12 +316,31 @@ class Ui_MainWindow(object):
                 slider_instance.setRange(0,100)
                 slider_instance.setValue(50)
                 slider_instance.valueChanged.connect(lambda value, range=i: self.changecomponent(value, range,currentmod))
+        '''
     
-    # def changecomponent(self, value, range, currentmod):
-    #     for image in self.arrayofimages:
-    #         if image.get_tab_number == range:
+        ##_create image for each input viewer_##
+        self.image_1=Image()
+        self.image_2=Image()
+        self.image_3=Image()
+        self.image_4=Image()
+
+        ##_craete dict for each image (dict contain the data need to mix (percentage to each component))
+        self.image_1_weights = dict({'Real':100 ,'Imaginary': 100,'Magnitude': 100 , 'Phase':100})
+        self.image_2_weights = dict({'Real':100 ,'Imaginary': 100,'Magnitude': 100 , 'Phase':100})
+        self.image_3_weights = dict({'Real':100 ,'Imaginary': 100,'Magnitude': 0 , 'Phase':100})
+        self.image_4_weights = dict({'Real':100 ,'Imaginary': 100,'Magnitude': 100 , 'Phase':100})
 
 
+        ##compnent_sliders_signals
+        self.componentSlider1.valueChanged.connect(lambda value: self.set_comonent_ratio(self.image_1_weights,self.comboBox1.currentText(),value))
+        self.componentSlider2.valueChanged.connect(lambda value: self.set_comonent_ratio(self.image_2_weights,self.comboBox2.currentText(),value))
+        self.componentSlider3.valueChanged.connect(lambda value: self.set_comonent_ratio(self.image_3_weights,self.comboBox3.currentText(),value))
+        self.componentSlider4.valueChanged.connect(lambda value: self.set_comonent_ratio(self.image_4_weights,self.comboBox4.currentText(),value))
+
+
+    #function to set component ratio (from sliders value)
+    def set_comonent_ratio(self,dictionary_of_comp_weights,component_name,weight):
+        dictionary_of_comp_weights[component_name]=weight
 
 
     def reconstruct_image(self, magnitude, phase):
@@ -416,10 +449,10 @@ class Ui_MainWindow(object):
 
         # Connect the doubleClicked signal to onDoubleClic
 
-        self.verticalLayoutWidget.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout1,self.componentLayout1,self.comboBox1,1))
-        self.verticalLayoutWidget_2.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout2,self.componentLayout2,self.comboBox2,2))
-        self.verticalLayoutWidget_3.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout3,self.componentLayout3,self.comboBox3,3))
-        self.verticalLayoutWidget_4.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout4,self.componentLayout4,self.comboBox4,4))
+        self.verticalLayoutWidget.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout1,self.componentLayout1,self.comboBox1,1,self.image_1))
+        self.verticalLayoutWidget_2.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout2,self.componentLayout2,self.comboBox2,2,self.image_2))
+        self.verticalLayoutWidget_3.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout3,self.componentLayout3,self.comboBox3,3,self.image_3))
+        self.verticalLayoutWidget_4.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout4,self.componentLayout4,self.comboBox4,4,self.image_4))
 
         
 
@@ -451,7 +484,7 @@ class Ui_MainWindow(object):
     #         label.setPixmap(scaled_pixmap)
     #         imgLayout.addWidget(label)
     
-    def onDoubleClick(self, imgLayout,imgLayout2,comboBox,index):
+    def onDoubleClick(self, imgLayout,imgLayout2,comboBox,index,controled_image):
         options = QtWidgets.QFileDialog.Options()
         options |= QtWidgets.QFileDialog.ReadOnly
         image_path, _ = QtWidgets.QFileDialog.getOpenFileName(None, "Open Image File", "", "Images (*.png *.xpm *.jpg *.bmp *.gif)", options=options)
@@ -467,14 +500,16 @@ class Ui_MainWindow(object):
             #     if image.get_tab_number()==index:
             #         self.arrayofimages.pop(image)
 
-            image = Image(image_path)
+            image = controled_image
+            controled_image.upload_image(image_path)
+            
             # self.arrayofimages.append(image)
 
             # real = image.get_component("Real",1)
             # imaginary = image.get_component("Imaginary",1)
             # self.reconstruct_image_real_imag(real, imaginary)
-            magnitude = image.get_component("Magnitude",1)
-            phase = image.get_component("Phase",1)
+            magnitude = controled_image.get_component("Magnitude",1)
+            phase = controled_image.get_component("Phase",1)
             self.reconstruct_image(phase, magnitude)
 
                 
@@ -483,7 +518,7 @@ class Ui_MainWindow(object):
             desired_size = (300, 200)
 
             # Resize the image using the 'resize' method
-            resized_image = image.resize(desired_size)
+            resized_image = controled_image.resize(desired_size)
 
             # Convert the resized image to a QImage
             qt_image = QtGui.QImage(resized_image.data, resized_image.shape[1], resized_image.shape[0], resized_image.shape[1], QtGui.QImage.Format_Grayscale8)
@@ -496,8 +531,8 @@ class Ui_MainWindow(object):
             label.setPixmap(pixmap)
             # Add the new QLabel to the imgLayout
             imgLayout.addWidget(label)
-            self.onComboBoxValueChanged("Magnitude",imgLayout2,image)
-            comboBox.currentIndexChanged.connect(lambda index: self.onComboBoxValueChanged(comboBox.currentText(), imgLayout2, image))
+            self.onComboBoxValueChanged("Magnitude",imgLayout2,controled_image)
+            comboBox.currentIndexChanged.connect(lambda index: self.onComboBoxValueChanged(comboBox.currentText(), imgLayout2, controled_image))
 
             
 
@@ -531,8 +566,8 @@ class Ui_MainWindow(object):
         self.comboBox1.setItemText(2, _translate("MainWindow", "Real"))
         self.comboBox1.setItemText(3, _translate("MainWindow", "Imaginary"))
         self.label_9.setText(_translate("MainWindow", "Mixing Type:"))
-        self.mixingComboBox.setItemText(0, _translate("MainWindow", "Component"))
-        self.mixingComboBox.setItemText(1, _translate("MainWindow", "Region"))
+        self.mixingComboBox.setItemText(0, _translate("MainWindow", "real-imag"))
+        self.mixingComboBox.setItemText(1, _translate("MainWindow", "mag-phase"))
         self.label_10.setText(_translate("MainWindow", "Region:"))
         self.outerRadioButton.setText(_translate("MainWindow", "Outer"))
         self.innerRadioButton.setText(_translate("MainWindow", "Inner"))
