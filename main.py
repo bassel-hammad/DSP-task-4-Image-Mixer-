@@ -1,25 +1,71 @@
-
 from PyQt5 import QtCore, QtGui, QtWidgets
-from image import  Image
-from image import  mix_and_reconstruct
+from PyQt5.QtCore import Qt, QPoint, pyqtSignal, QObject
+from image1 import  ImageViewer
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QFileDialog, QVBoxLayout, QPushButton, QWidget
 from PyQt5 import QtWidgets, QtGui, QtCore
+from PyQt5.QtGui import QPixmap as qtg
+
 import matplotlib.pyplot as plt
 from PIL import Image as PILImage
 import cv2
 import numpy as np
+import threading
+import time
 
+class CustomLabel(QLabel):
+    doubleClicked = pyqtSignal()
 
-class DoubleClickWidget(QtWidgets.QWidget):
-    doubleClicked = QtCore.pyqtSignal()
-  
+    move_signal = pyqtSignal(int, int)
+    
+    def __init__(self, parent=None):
+        super(CustomLabel, self).__init__(parent)
+        self.setMouseTracking(True)
+        self.origin = None
+        self.x=0
+        self.y=0
 
 
     def mouseDoubleClickEvent(self, event):
         self.doubleClicked.emit()
-        super(DoubleClickWidget, self).mouseDoubleClickEvent(event)
+        super(CustomLabel, self).mouseDoubleClickEvent(event)
 
-    
+
+    def mousePressEvent(self, event):
+            self.origin = event.pos()
+
+
+    def mouseMoveEvent(self, event):
+        global x
+        global y
+        
+        if self.origin:
+            delta = event.pos() - self.origin
+            if delta.x()>0:
+                self.x+=1
+            elif delta.x()<0:
+                self.x-=1
+            elif delta.y()<0:
+                self.y+=2
+            elif delta.y()>0:
+                self.y-=2
+            self.origin = event.pos()
+            self.move_signal.emit(self.x, self.y)
+            
+
+    def mouseReleaseEvent(self, event):
+        self.origin = None
+        self.x = 0
+        self.y = 0
+        self.move_signal.emit(self.x, self.y)
+        # You can add additional logic here if neededs
+
+    def contains_image(self):
+        return not self.pixmap().isNull() if self.pixmap() else False
+
+    def remove_image(self):
+        self.clear()
+
+
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -40,6 +86,7 @@ class Ui_MainWindow(object):
         self.imgLayout1 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget)
         self.imgLayout1.setContentsMargins(0, 0, 0, 0)
         self.imgLayout1.setObjectName("imgLayout1")
+        self.imgLayout1.addWidget(self.img_label1)
         
         
 
@@ -71,9 +118,10 @@ class Ui_MainWindow(object):
         self.componentSlider1.setOrientation(QtCore.Qt.Horizontal)
         self.componentSlider1.setObjectName("componentSlider1")
         
-        self.lcdNumber = QtWidgets.QLCDNumber(self.inputTab)
-        self.lcdNumber.setGeometry(QtCore.QRect(490, 260, 51, 23))
-        self.lcdNumber.setObjectName("lcdNumber")
+        self.lcdNumber_1 = QtWidgets.QLCDNumber(self.inputTab)
+        self.lcdNumber_1.setGeometry(QtCore.QRect(490, 260, 51, 23))
+        self.lcdNumber_1.setObjectName("lcdNumber_1")
+        self.lcdNumber_1.display(100)
         self.label_6 = QtWidgets.QLabel(self.inputTab)
         self.label_6.setGeometry(QtCore.QRect(570, 260, 121, 21))
         font = QtGui.QFont()
@@ -86,6 +134,7 @@ class Ui_MainWindow(object):
         self.lcdNumber_2 = QtWidgets.QLCDNumber(self.inputTab)
         self.lcdNumber_2.setGeometry(QtCore.QRect(1060, 260, 51, 23))
         self.lcdNumber_2.setObjectName("lcdNumber_2")
+        self.lcdNumber_2.display(100)
         self.componentSlider2 = QtWidgets.QSlider(self.inputTab)
         self.componentSlider2.setGeometry(QtCore.QRect(700, 260, 351, 22))
         self.componentSlider2.setOrientation(QtCore.Qt.Horizontal)
@@ -102,6 +151,7 @@ class Ui_MainWindow(object):
         self.lcdNumber_3 = QtWidgets.QLCDNumber(self.inputTab)
         self.lcdNumber_3.setGeometry(QtCore.QRect(490, 550, 51, 23))
         self.lcdNumber_3.setObjectName("lcdNumber_3")
+        self.lcdNumber_3.display(100)
         self.componentSlider3 = QtWidgets.QSlider(self.inputTab)
         self.componentSlider3.setGeometry(QtCore.QRect(130, 550, 351, 22))
         self.componentSlider3.setOrientation(QtCore.Qt.Horizontal)
@@ -118,6 +168,8 @@ class Ui_MainWindow(object):
         self.lcdNumber_4 = QtWidgets.QLCDNumber(self.inputTab)
         self.lcdNumber_4.setGeometry(QtCore.QRect(1060, 550, 51, 23))
         self.lcdNumber_4.setObjectName("lcdNumber_4")
+        self.lcdNumber_4.display(100)
+        
         self.componentSlider4 = QtWidgets.QSlider(self.inputTab)
         self.componentSlider4.setGeometry(QtCore.QRect(700, 550, 351, 22))
         self.componentSlider4.setOrientation(QtCore.Qt.Horizontal)
@@ -128,40 +180,47 @@ class Ui_MainWindow(object):
         self.componentLayout1 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_5)
         self.componentLayout1.setContentsMargins(0, 0, 0, 0)
         self.componentLayout1.setObjectName("componentLayout1")
+        self.componentLayout1.addWidget(self.component_label1)
         self.imgLayout2 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_2)
         self.imgLayout2.setContentsMargins(0, 0, 0, 0)
         self.imgLayout2.setObjectName("imgLayout2")
+        self.imgLayout2.addWidget(self.img_label2)
         self.imgLayout3 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_3)
         self.imgLayout3.setContentsMargins(0, 0, 0, 0)
         self.imgLayout3.setObjectName("imgLayout3")
+        self.imgLayout3.addWidget(self.img_label3)
         self.imgLayout4 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_4)
         self.imgLayout4.setContentsMargins(0, 0, 0, 0)
         self.imgLayout4.setObjectName("imgLayout4")
+        self.imgLayout4.addWidget(self.img_label4)
         self.verticalLayoutWidget_6 = QtWidgets.QWidget(self.inputTab)
         self.verticalLayoutWidget_6.setGeometry(QtCore.QRect(860, 30, 241, 221))
         self.verticalLayoutWidget_6.setObjectName("verticalLayoutWidget_6")
         self.componentLayout2 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_6)
         self.componentLayout2.setContentsMargins(0, 0, 0, 0)
         self.componentLayout2.setObjectName("componentLayout2")
+        self.componentLayout2.addWidget(self.component_label2)
+        
         self.verticalLayoutWidget_7 = QtWidgets.QWidget(self.inputTab)
         self.verticalLayoutWidget_7.setGeometry(QtCore.QRect(290, 320, 241, 221))
         self.verticalLayoutWidget_7.setObjectName("verticalLayoutWidget_7")
         self.componentLayout3 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_7)
         self.componentLayout3.setContentsMargins(0, 0, 0, 0)
         self.componentLayout3.setObjectName("componentLayout3")
+        self.componentLayout3.addWidget(self.component_label3)
         self.verticalLayoutWidget_8 = QtWidgets.QWidget(self.inputTab)
         self.verticalLayoutWidget_8.setGeometry(QtCore.QRect(860, 320, 241, 221))
         self.verticalLayoutWidget_8.setObjectName("verticalLayoutWidget_8")
         self.componentLayout4 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_8)
         self.componentLayout4.setContentsMargins(0, 0, 0, 0)
         self.componentLayout4.setObjectName("componentLayout4")
+        self.componentLayout4.addWidget(self.component_label4)
         self.comboBox1 = QtWidgets.QComboBox(self.inputTab)
         self.comboBox1.setGeometry(QtCore.QRect(60, 0, 231, 22))
         self.comboBox1.setObjectName("comboBox1")
         self.comboBox1.addItem("")
         self.comboBox1.addItem("")
-        self.comboBox1.addItem("")
-        self.comboBox1.addItem("")
+    
         self.line = QtWidgets.QFrame(self.inputTab)
         self.line.setGeometry(QtCore.QRect(0, 280, 1121, 16))
         self.line.setFrameShadow(QtWidgets.QFrame.Plain)
@@ -227,26 +286,24 @@ class Ui_MainWindow(object):
         self.comboBox2.setObjectName("comboBox2")
         self.comboBox2.addItem("")
         self.comboBox2.addItem("")
-        self.comboBox2.addItem("")
-        self.comboBox2.addItem("")
         self.comboBox3 = QtWidgets.QComboBox(self.inputTab)
         self.comboBox3.setGeometry(QtCore.QRect(60, 290, 231, 22))
         self.comboBox3.setObjectName("comboBox3")
         self.comboBox3.addItem("")
         self.comboBox3.addItem("")
-        self.comboBox3.addItem("")
-        self.comboBox3.addItem("")
+
         self.comboBox4 = QtWidgets.QComboBox(self.inputTab)
         self.comboBox4.setGeometry(QtCore.QRect(630, 290, 231, 22))
         self.comboBox4.setObjectName("comboBox4")
         self.comboBox4.addItem("")
         self.comboBox4.addItem("")
-        self.comboBox4.addItem("")
-        self.comboBox4.addItem("")
+
         self.regionSizeSlide = QtWidgets.QSlider(self.inputTab)
         self.regionSizeSlide.setGeometry(QtCore.QRect(180, 700, 291, 22))
         self.regionSizeSlide.setOrientation(QtCore.Qt.Horizontal)
         self.regionSizeSlide.setObjectName("regionSizeSlide")
+        self.regionSizeSlide.setRange(0,100)
+
         self.tabWidget.addTab(self.inputTab, "")
         self.outputTab = QtWidgets.QWidget()
         self.outputTab.setObjectName("outputTab")
@@ -256,10 +313,11 @@ class Ui_MainWindow(object):
         self.windowLayout1 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_9)
         self.windowLayout1.setContentsMargins(0, 0, 0, 0)
         self.windowLayout1.setObjectName("windowLayout1")
+        self.windowLayout1.addWidget(self.output_label1)
+
         self.verticalLayoutWidget_10 = QtWidgets.QWidget(self.outputTab)
         self.verticalLayoutWidget_10.setGeometry(QtCore.QRect(550, 50, 561, 521))
         self.verticalLayoutWidget_10.setObjectName("verticalLayoutWidget_10")
-        self.verticalLayoutWidget_9.setStyleSheet("background-color: lightblue;")
         self.windowLayout2 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_10)
         self.windowLayout2.setContentsMargins(0, 0, 0, 0)
         self.windowLayout2.setObjectName("windowLayout2")
@@ -286,268 +344,249 @@ class Ui_MainWindow(object):
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
+        self.currentmode = 0
+        self.thereisimage = False
 
         self.retranslateUi(MainWindow)
         self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+        self.mixingComboBox.currentIndexChanged.connect(lambda index: self.changemode(index))
+        self.mixingdata ={
+         'image1':{
+            '':'',
+            'Magnitude':0,
+            'Phase':0,
+            'Real':0,
+            'Imaginary':0,
+            'RatioReal':1,
+            'RatioImaginary':1,
+            'RatioPhase':1,
+            'RatioMagnitude':1,
 
+        },
+        'image2':{
+            '':'',
+            'Magnitude':0,
+            'Phase':0,
+            'Real':0,
+            'Imaginary':0,
+            'RatioReal':1,
+            'RatioImaginary':1,
+            'RatioPhase':1,
+            'RatioMagnitude':1,
+        },
+        'image3':{
+            '':'',
+            'Magnitude':0,
+            'Phase':0,
+            'Real':0,
+            'Imaginary':0,
+            'RatioReal':1,
+            'RatioImaginary':1,
+            'RatioPhase':1,
+            'RatioMagnitude':1,
+        },
+        'image4':{
+            '':'',
+            '':'',
+            'Magnitude':0,
+            'Phase':0,
+            'Real':0,
+            'Imaginary':0,
+            'RatioReal':1,
+            'RatioImaginary':1,
+            'RatioPhase':1,
+            'RatioMagnitude':1,
+        },
 
-        # Add a button
-        self.MixButton = QtWidgets.QPushButton(self.centralwidget)
-        self.MixButton.setGeometry(QtCore.QRect(10, 780, 111, 31))
-        self.MixButton.setObjectName("pushButton")
-        self.MixButton.setText("Mix")
+        }
+        for i in range(1,5):
+          slidername = f"componentSlider{i}"
+          slider = getattr(self, slidername, None)
+          slider.setRange(0,100)
+          slider.setValue(100)
+          slider.valueChanged.connect(lambda value, range=i: self.adjustratio(value, range))
 
-        self.MixButton.clicked.connect(lambda: mix_and_reconstruct(self.mixingComboBox.currentText(),self.image_1_weights,self.image_1,self.image_2_weights,self.image_2,self.image_3_weights,self.image_3,self.image_4_weights,self.image_4))
-
-
-
+    def adjustratio(self, value, range):
         
-        '''
+        lcd = f"lcdNumber_{range}"
+        lcdnumber = getattr(self, lcd, None)
+        lcdnumber.display(value)
+        image = f"image{range}"
+        comboBox = f"comboBox{range}"
+        comboBox_instance = getattr(self, comboBox, None)
+        componentname = comboBox_instance.currentText()
+        ratio = f"Ratio{componentname}"
+        self.mixingdata[image][ratio]=value/100
+        if self.thereisimage:
+          self.recover_image()
+        
+
+
+
+    def changemode(self, index):
+        
         for i in range(1, 5):
-            slider_name = f"componentSlider{i}"
-            slider_instance = getattr(self, slider_name, None)
+            self.currentmode = index
             comboBox = f"comboBox{i}"
             comboBox_instance = getattr(self, comboBox, None)
-            currentmod = comboBox_instance.currentText()
+            if index ==0:
+                comboBox_instance.setItemText(0, "Real")
+                comboBox_instance.setItemText(1,  "Imaginary")
+            else:
+                comboBox_instance.setItemText(0, "Magnitude")
+                comboBox_instance.setItemText(1,  "Phase")
 
 
-            if slider_instance is not None:
-                slider_instance.setRange(0,100)
-                slider_instance.setValue(50)
-                slider_instance.valueChanged.connect(lambda value, range=i: self.changecomponent(value, range,currentmod))
-        '''
-    
-        ##_create image for each input viewer_##
-        self.image_1=Image()
-        self.image_2=Image()
-        self.image_3=Image()
-        self.image_4=Image()
-
-        ##_craete dict for each image (dict contain the data need to mix (percentage to each component))
-        self.image_1_weights = dict({'Real':100 ,'Imaginary': 100,'Magnitude': 100 , 'Phase':100})
-        self.image_2_weights = dict({'Real':100 ,'Imaginary': 100,'Magnitude': 100 , 'Phase':100})
-        self.image_3_weights = dict({'Real':100 ,'Imaginary': 100,'Magnitude': 0 , 'Phase':100})
-        self.image_4_weights = dict({'Real':100 ,'Imaginary': 100,'Magnitude': 100 , 'Phase':100})
-
-
-        ##compnent_sliders_signals
-        self.componentSlider1.valueChanged.connect(lambda value: self.set_comonent_ratio(self.image_1_weights,self.comboBox1.currentText(),value))
-        self.componentSlider2.valueChanged.connect(lambda value: self.set_comonent_ratio(self.image_2_weights,self.comboBox2.currentText(),value))
-        self.componentSlider3.valueChanged.connect(lambda value: self.set_comonent_ratio(self.image_3_weights,self.comboBox3.currentText(),value))
-        self.componentSlider4.valueChanged.connect(lambda value: self.set_comonent_ratio(self.image_4_weights,self.comboBox4.currentText(),value))
-
-
-    #function to set component ratio (from sliders value)
-    def set_comonent_ratio(self,dictionary_of_comp_weights,component_name,weight):
-        dictionary_of_comp_weights[component_name]=weight
-
-
-    def reconstruct_image(self, magnitude, phase):
-        # Combine magnitude, real, and imaginary components to get the complex Fourier representation
-        complex_image = magnitude * (np.cos(phase) + 1j * np.sin(phase))
-
-        # Apply the inverse Fourier transform
-        inverse_image = np.fft.ifft2(np.fft.ifftshift(complex_image)).real
-
-        # Normalize the pixel values to the range [0, 255]
-        reconstructed_image = cv2.normalize(inverse_image, None, 0, 255, cv2.NORM_MINMAX)
-
-        image = reconstructed_image.astype(np.uint8)
-        cv2.imshow('Reconstructed Image', inverse_image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-
-    
-    def reconstruct_image_real_imag(self,real_part, imag_part):
-        # Combine real and imaginary parts to get complex Fourier coefficients
-        fourier_coefficients = real_part + 1j * imag_part
-
-
-        # Perform inverse Fourier transform to get the image
-        recovered_image = np.fft.ifft2(np.fft.ifftshift(fourier_coefficients))
-
-        # Display the recovered image, Fourier Magnitude, and Phase
-        plt.figure(figsize=(15, 4))
-
-        # Display Real Part
-        plt.subplot(1, 4, 1)
-        plt.imshow(np.real(fourier_coefficients), cmap='gray')
-        plt.title('Real Part')
-
-        # Display Imaginary Part
-        plt.subplot(1, 4, 2)
-        plt.imshow(np.imag(fourier_coefficients), cmap='gray')
-        plt.title('Imaginary Part')
-
-        # Display Magnitude Spectrum (log scale)
-        plt.subplot(1, 4, 3)
-        magnitude_spectrum = np.abs(fourier_coefficients)
-        plt.imshow(np.log(1 + magnitude_spectrum), cmap='gray')
-        plt.title('Fourier Magnitude (Log Scale)')
-
-        # Display Recovered Image
-        plt.subplot(1, 4, 4)
-        plt.imshow(np.abs(recovered_image), cmap='gray', vmin=0, vmax=1)  # Adjust visualization range
-        plt.title('Recovered Image')
-
-        plt.show()
-
-
-
-        
-    
-    def onComboBoxValueChanged(self, text,imagelayout,image):
-        component_image = image.get_component_images(text)
-        # Set the desired size of the image
-        desired_size = (300, 200)
             
-            # Resize the image using the 'resize' method
-        finalimage = component_image.resize(desired_size)
+
+
+
+
+    def process_inner_region(self, component, region_percent):
+        # Calculate the size of the inner rectangle based on the given percentage
+        region_size = int(min(component.size) * region_percent / 100)
         
+        # Calculate the coordinates of the rectangle
+        start_x = (component.size[1] - region_size) // 2
+        start_y = (component.size[0] - region_size) // 2
+        end_x = start_x + region_size
+        end_y = start_y + region_size
 
-        existing_widget = imagelayout.itemAt(0)
-        if existing_widget:
-            widgetToRemove = existing_widget.widget()
-            imagelayout.removeWidget(widgetToRemove)
-            widgetToRemove.setParent(None)
+        # Create an array of zeros with the same shape as the component
+        processed_component = np.zeros_like(component)
 
-        # Convert the resized image to a QImage
-        qt_image = QtGui.QImage(finalimage.data, finalimage.shape[1], finalimage.shape[0], finalimage.shape[1], QtGui.QImage.Format_Grayscale8)
+        # Set the values in the selected region to 1
+        processed_component[start_y:end_y, start_x:end_x] = 1
 
-        # Create a QPixmap with the desired size
-        pixmap = QtGui.QPixmap.fromImage(qt_image)
+        plt.imshow(processed_component, cmap='gray')
+        plt.title(f'{component} Component')
+        plt.show()
+        
+    
 
-        # Create a new QLabel for the scaled image
-        label = QLabel()
-        label.setPixmap(pixmap)
-
-        # Add the new QLabel to the imgLayout
-        imagelayout.addWidget(label)
 
     def createImageLayouts(self):
-        self.verticalLayoutWidget = DoubleClickWidget(self.inputTab)
+        self.verticalLayoutWidget = QtWidgets.QWidget(self.inputTab)
         self.verticalLayoutWidget.setGeometry(QtCore.QRect(0, 30, 271, 221))
         self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
         
-        self.verticalLayoutWidget_2 =DoubleClickWidget(self.inputTab)
+        self.verticalLayoutWidget_2 =QtWidgets.QWidget(self.inputTab)
         self.verticalLayoutWidget_2.setGeometry(QtCore.QRect(570, 30, 271, 221))
         self.verticalLayoutWidget_2.setObjectName("verticalLayoutWidget_2")
 
-        self.verticalLayoutWidget_3 = DoubleClickWidget(self.inputTab)
+        self.verticalLayoutWidget_3 = QtWidgets.QWidget(self.inputTab)
         self.verticalLayoutWidget_3.setGeometry(QtCore.QRect(0, 320, 271, 221))
         self.verticalLayoutWidget_3.setObjectName("verticalLayoutWidget_3")
         
-        self.verticalLayoutWidget_4 = DoubleClickWidget(self.inputTab)
+        self.verticalLayoutWidget_4 = QtWidgets.QWidget(self.inputTab)
         self.verticalLayoutWidget_4.setGeometry(QtCore.QRect(570, 320, 271, 221))
         self.verticalLayoutWidget_4.setObjectName("verticalLayoutWidget_4")
          
         self.arrayofimages=[]
+        self.img_label1 = CustomLabel() 
+        
+        
+        self.img_label2 = CustomLabel() 
+        self.img_label3 = CustomLabel() 
+        self.img_label4 = CustomLabel() 
 
+        self.component_label1 = CustomLabel() 
+        self.component_label2 = CustomLabel() 
+        self.component_label3 = CustomLabel() 
+        self.component_label4 = CustomLabel() 
+        self.output_label1 = CustomLabel()
+        self.output_label1 = CustomLabel()
+
+        
         # Set background color for the verticalLayoutWidget
         
 
         # Connect the doubleClicked signal to onDoubleClic
 
-        self.verticalLayoutWidget.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout1,self.componentLayout1,self.comboBox1,1,self.image_1))
-        self.verticalLayoutWidget_2.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout2,self.componentLayout2,self.comboBox2,2,self.image_2))
-        self.verticalLayoutWidget_3.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout3,self.componentLayout3,self.comboBox3,3,self.image_3))
-        self.verticalLayoutWidget_4.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout4,self.componentLayout4,self.comboBox4,4,self.image_4))
+        self.img_label1.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout1,self.componentLayout1,1))
+        self.img_label2.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout2,self.componentLayout2,2))
+        self.img_label3.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout3,self.componentLayout3,3))
+        self.img_label4.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout4,self.componentLayout4,4))
 
-        
-
-    # def onDoubleClick(self, imgLayout):
-    #     options = QtWidgets.QFileDialog.Options()
-    #     options |= QtWidgets.QFileDialog.ReadOnly
-    #     image_path, _ = QtWidgets.QFileDialog.getOpenFileName(None, "Open Image File", "", "Images (*.png *.xpm *.jpg *.bmp *.gif)", options=options)
-
-    #     if image_path:
-    #         existing_widget = imgLayout.itemAt(0)
-    #         if existing_widget:
-    #             widgetToRemove = existing_widget.widget()
-    #             imgLayout.removeWidget(widgetToRemove)
-    #             widgetToRemove.setParent(None)
-
-    #         image = Image(image_path)
-    #         original_image = QtGui.QImage(image.original_image.data, image.size[1], image.size[0], image.size[1], QtGui.QImage.Format_Grayscale8)
-    #         pixmap = QtGui.QPixmap.fromImage(original_image)
-
-    #         # Get the dimensions of the imgLayout
-    #         layout_width = imgLayout.geometry().width()
-    #         layout_height = imgLayout.geometry().height()
-
-    #         # Scale the image to fit within the imgLayout
-    #         scaled_pixmap = pixmap.scaled(layout_width, int(layout_height*0.8), QtCore.Qt.KeepAspectRatio)
-
-    #         # Add the new image to the imgLayout
-    #         label = QtWidgets.QLabel()
-    #         label.setPixmap(scaled_pixmap)
-    #         imgLayout.addWidget(label)
-    
-    def onDoubleClick(self, imgLayout,imgLayout2,comboBox,index,controled_image):
+    def onDoubleClick(self, imgLayout,imgLayout2,index):
         options = QtWidgets.QFileDialog.Options()
         options |= QtWidgets.QFileDialog.ReadOnly
         image_path, _ = QtWidgets.QFileDialog.getOpenFileName(None, "Open Image File", "", "Images (*.png *.xpm *.jpg *.bmp *.gif)", options=options)
-
         if image_path:
-            # Check if there is an existing widget in imgLayout and remove it
-            existing_widget = imgLayout.itemAt(0)
-            if existing_widget:
-                widgetToRemove = existing_widget.widget()
-                imgLayout.removeWidget(widgetToRemove)
-                widgetToRemove.setParent(None)
-            # for image in self.arrayofimages:
-            #     if image.get_tab_number()==index:
-            #         self.arrayofimages.pop(image)
-
-            image = controled_image
-            controled_image.upload_image(image_path)
             
-            # self.arrayofimages.append(image)
+            
+            labelname1 = f"img_label{index}"
+            imagelabel1 = getattr(self, labelname1, None)
+            labelname2 = f"component_label{index}"
+            imagelabel2 = getattr(self, labelname2, None)
 
-            # real = image.get_component("Real",1)
-            # imaginary = image.get_component("Imaginary",1)
-            # self.reconstruct_image_real_imag(real, imaginary)
-            magnitude = controled_image.get_component("Magnitude",1)
-            phase = controled_image.get_component("Phase",1)
-            self.reconstruct_image(phase, magnitude)
+            image =ImageViewer(imagelabel1,imagelabel2,image_path)
+            imagename = f"image{index}"
+            self.mixingdata[imagename]["Magnitude"] = image.getorgcomponents("Magnitude")
+            self.mixingdata[imagename]["Phase"] = image.getorgcomponents("Phase")
+            self.mixingdata[imagename]["Real"] = image.getorgcomponents("Real")
+            self.mixingdata[imagename]["Imaginary"] = image.getorgcomponents("Imaginary")
+            
+            comboBox = f"comboBox{index}"
+            comboBox_instance = getattr(self, comboBox, None)
+            image.show_ft_component(comboBox_instance.currentText())
+            comboBox_instance.currentIndexChanged.connect(lambda index: image.show_ft_component(comboBox_instance.currentText()))
+            imagelabel1.mouseMoveEvent(image.adjust_brightness_contrast)
+            imagelabel1.move_signal.connect(lambda x, y: image.adjust_brightness_contrast(x, y))
+            self.thereisimage = True
+            self.recover_image()
 
+    def recover_image(self):
+           
+            # Assuming componentsimage is a NumPy array
+            if self.currentmode == 0:
+                component1 =self.mixingdata["image1"]["Real"]*self.mixingdata["image1"]["RatioReal"] + 1j * self.mixingdata["image1"]["Imaginary"]*self.mixingdata["image1"]["RatioImaginary"]
+                component2 =self.mixingdata["image2"]["Real"]*self.mixingdata["image2"]["RatioReal"] + 1j * self.mixingdata["image2"]["Imaginary"]*self.mixingdata["image2"]["RatioImaginary"]
+                component3 =self.mixingdata["image3"]["Real"]*self.mixingdata["image3"]["RatioReal"] + 1j * self.mixingdata["image3"]["Imaginary"]*self.mixingdata["image3"]["RatioImaginary"]
+                component4 =self.mixingdata["image4"]["Real"]*self.mixingdata["image4"]["RatioReal"] + 1j * self.mixingdata["image4"]["Imaginary"]*self.mixingdata["image4"]["RatioImaginary"]
                 
+            else:
+                component1 =(self.mixingdata["image1"]["Magnitude"]*self.mixingdata["image1"]["RatioMagnitude"]) * np.exp(1j * self.mixingdata["image1"]["Phase"]*self.mixingdata["image1"]["RatioPhase"])
+                component2 =(self.mixingdata["image2"]["Magnitude"]*self.mixingdata["image2"]["RatioMagnitude"]) * np.exp(1j * self.mixingdata["image2"]["Phase"]*self.mixingdata["image2"]["RatioPhase"])
+                component3 =(self.mixingdata["image3"]["Magnitude"]*self.mixingdata["image3"]["RatioMagnitude"]) * np.exp(1j * self.mixingdata["image3"]["Phase"]*self.mixingdata["image3"]["RatioPhase"])
+                component4 =(self.mixingdata["image4"]["Magnitude"]*self.mixingdata["image4"]["RatioMagnitude"]) * np.exp(1j * self.mixingdata["image4"]["Phase"]*self.mixingdata["image4"]["RatioPhase"])
 
-            # Set the desired size of the image
-            desired_size = (300, 200)
+            complex_array = component1+component2+component3+component4
+            # Perform inverse 2D Fourier Transform
+            f_transform_inverse = np.fft.ifft2(np.fft.ifftshift(complex_array))
 
-            # Resize the image using the 'resize' method
-            resized_image = controled_image.resize(desired_size)
+            # Take the real part to get the recovered image
+            componentsimage = np.real(f_transform_inverse)
+            recovered_image = (componentsimage - np.min(componentsimage)) / (np.max(componentsimage) - np.min(componentsimage))
+            recovered_image = (recovered_image * 255).astype(np.uint8)
 
-            # Convert the resized image to a QImage
-            qt_image = QtGui.QImage(resized_image.data, resized_image.shape[1], resized_image.shape[0], resized_image.shape[1], QtGui.QImage.Format_Grayscale8)
 
-            # Create a QPixmap with the desired size
+            # Resize the image
+            resized_image = cv2.resize(recovered_image, (271, 221))
+
+            # Convert the NumPy array to a QImage
+            height, width = resized_image.shape
+            qt_image = QtGui.QImage(resized_image.data, width, height, width, QtGui.QImage.Format_Grayscale8)
+
+            # Convert QImage to QPixmap
             pixmap = QtGui.QPixmap.fromImage(qt_image)
 
-            # Create a new QLabel for the scaled image
-            label = QLabel()
-            label.setPixmap(pixmap)
-            # Add the new QLabel to the imgLayout
-            imgLayout.addWidget(label)
-            self.onComboBoxValueChanged("Magnitude",imgLayout2,controled_image)
-            comboBox.currentIndexChanged.connect(lambda index: self.onComboBoxValueChanged(comboBox.currentText(), imgLayout2, controled_image))
+            # Assuming self.ft_label is a QLabel where you want to display the recovered image
+            self.output_label1.setPixmap(pixmap)        
+        
 
-            
+    def brightness_and_contrast(self,x, y, orgimage,imgLayout,imglabel):
+        image = orgimage.adjust_brightness_contrast(x,y)
+        # Set the desired size of the image
+        imglabel.remove_image()
+        self.set_image(image,imglabel)   
+        imgLayout.addWidget(imglabel)
 
-           
-
-           
-
-
-
-    # def array_to_pixmap(self, array):
-    #     height, width = array.shape
-    #     qimage = QtGui.QImage(array.data.tobytes(), width, height, width, QtGui.QImage.Format_Grayscale8)
-    #     pixmap = QtGui.QPixmap.fromImage(qimage)
-    #     return pixmap
-
+        
+        # Add the new QLabel to the imgLayout
+        
+    
 
 
     def retranslateUi(self, MainWindow):
@@ -561,10 +600,8 @@ class Ui_MainWindow(object):
         self.label_6.setText(_translate("MainWindow", "Component Value:"))
         self.label_7.setText(_translate("MainWindow", "Component Value:"))
         self.label_8.setText(_translate("MainWindow", "Component Value:"))
-        self.comboBox1.setItemText(0, _translate("MainWindow", "Magnitude"))
-        self.comboBox1.setItemText(1, _translate("MainWindow", "Phase"))
-        self.comboBox1.setItemText(2, _translate("MainWindow", "Real"))
-        self.comboBox1.setItemText(3, _translate("MainWindow", "Imaginary"))
+        self.comboBox1.setItemText(0, _translate("MainWindow", "Real"))
+        self.comboBox1.setItemText(1, _translate("MainWindow", "Imaginary"))
         self.label_9.setText(_translate("MainWindow", "Mixing Type:"))
         self.mixingComboBox.setItemText(0, _translate("MainWindow", "real-imag"))
         self.mixingComboBox.setItemText(1, _translate("MainWindow", "mag-phase"))
@@ -575,18 +612,12 @@ class Ui_MainWindow(object):
         self.windowRadioButton1.setText(_translate("MainWindow", "Window 1"))
         self.windowRadioButton2.setText(_translate("MainWindow", "Window 2"))
         self.label_14.setText(_translate("MainWindow", "Region Size:"))
-        self.comboBox2.setItemText(0, _translate("MainWindow", "Magnitude"))
-        self.comboBox2.setItemText(1, _translate("MainWindow", "Phase"))
-        self.comboBox2.setItemText(2, _translate("MainWindow", "Real"))
-        self.comboBox2.setItemText(3, _translate("MainWindow", "Imaginary"))
-        self.comboBox3.setItemText(0, _translate("MainWindow", "Magnitude"))
-        self.comboBox3.setItemText(1, _translate("MainWindow", "Phase"))
-        self.comboBox3.setItemText(2, _translate("MainWindow", "Real"))
-        self.comboBox3.setItemText(3, _translate("MainWindow", "Imaginary"))
-        self.comboBox4.setItemText(0, _translate("MainWindow", "Magnitude"))
-        self.comboBox4.setItemText(1, _translate("MainWindow", "Phase"))
-        self.comboBox4.setItemText(2, _translate("MainWindow", "Real"))
-        self.comboBox4.setItemText(3, _translate("MainWindow", "Imaginary"))
+        self.comboBox2.setItemText(0, _translate("MainWindow", "Real"))
+        self.comboBox2.setItemText(1, _translate("MainWindow", "Imaginary"))
+        self.comboBox3.setItemText(0, _translate("MainWindow", "Real"))
+        self.comboBox3.setItemText(1, _translate("MainWindow", "Imaginary"))
+        self.comboBox4.setItemText(0, _translate("MainWindow", "Real"))
+        self.comboBox4.setItemText(1, _translate("MainWindow", "Imaginary"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.inputTab), _translate("MainWindow", "Input"))
         self.label_12.setText(_translate("MainWindow", "Window 1"))
         self.label_13.setText(_translate("MainWindow", "Window 2"))
