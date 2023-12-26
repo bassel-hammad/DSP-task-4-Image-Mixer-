@@ -177,3 +177,26 @@ class ImageViewer:
 
         self.show_image()  
 
+
+    def getorgcomponents(self,text,rows_percentage,col_percentage,type="inner"):
+        component=self.orgcomponents[text]
+        number_of_rows=rows_percentage*component.shape[0]/100
+        number_of_col=col_percentage*component.shape[1]/100
+        # // => floor division
+        starting_row=(component.shape[0]//2)-(number_of_rows//2)
+        ending_row=starting_row+(number_of_rows)
+
+        starting_col=(component.shape[1]//2)-(number_of_col//2)
+        ending_col=starting_col+(number_of_col)
+        if type=="inner":
+            bounding_arr=np.zeros(component.shape)
+            bounding_arr[starting_row:ending_row, starting_col:ending_col] = 1
+        else:
+            bounding_arr=np.ones(component.shape)
+            bounding_arr[starting_row:ending_row, starting_col:ending_col] = 0
+        
+        return np.multiply(component,bounding_arr)
+    
+        #https://www.educative.io/answers/how-to-use-the-npmultiply-function-for-a-2d-array-in-python
+        #https://stackoverflow.com/questions/60325518/make-everything-zeros-in-a-numpy-2d-array-outside-of-bounding-box
+
