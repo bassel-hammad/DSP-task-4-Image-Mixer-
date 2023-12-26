@@ -177,7 +177,7 @@ class ImageViewer:
 
         self.show_image()  
 
-
+'''
     def getorgcomponents(self,text,rows_percentage,col_percentage,type="inner"):
         component=self.orgcomponents[text]
         number_of_rows=rows_percentage*component.shape[0]/100
@@ -193,10 +193,12 @@ class ImageViewer:
             bounding_arr[starting_row:ending_row, starting_col:ending_col] = 1
         else:
             bounding_arr=np.ones(component.shape)
+
             bounding_arr[starting_row:ending_row, starting_col:ending_col] = 0
         
         return np.multiply(component,bounding_arr)
     
         #https://www.educative.io/answers/how-to-use-the-npmultiply-function-for-a-2d-array-in-python
         #https://stackoverflow.com/questions/60325518/make-everything-zeros-in-a-numpy-2d-array-outside-of-bounding-box
+'''
 
