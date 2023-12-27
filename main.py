@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt, QPoint, pyqtSignal, QObject
-from image1 import  ImageViewer
+from imageviewer import  ImageViewer
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QFileDialog, QVBoxLayout, QPushButton, QWidget
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtGui import QPixmap as qtg
@@ -14,7 +14,6 @@ import time
 
 class CustomLabel(QLabel):
     doubleClicked = pyqtSignal()
-
     move_signal = pyqtSignal(int, int)
     
     def __init__(self, parent=None):
@@ -23,8 +22,7 @@ class CustomLabel(QLabel):
         self.origin = None
         self.x=0
         self.y=0
-
-
+        
     def mouseDoubleClickEvent(self, event):
         self.doubleClicked.emit()
         super(CustomLabel, self).mouseDoubleClickEvent(event)
@@ -261,19 +259,11 @@ class Ui_MainWindow(object):
         self.innerRadioButton = QtWidgets.QRadioButton(self.inputTab)
         self.innerRadioButton.setGeometry(QtCore.QRect(350, 650, 95, 20))
         self.innerRadioButton.setObjectName("innerRadioButton")
-        self.label_11 = QtWidgets.QLabel(self.inputTab)
-        self.label_11.setGeometry(QtCore.QRect(610, 650, 121, 16))
         font = QtGui.QFont()
         font.setBold(True)
         font.setWeight(75)
-        self.label_11.setFont(font)
-        self.label_11.setObjectName("label_11")
-        self.windowRadioButton1 = QtWidgets.QRadioButton(self.inputTab)
-        self.windowRadioButton1.setGeometry(QtCore.QRect(750, 650, 95, 20))
-        self.windowRadioButton1.setObjectName("windowRadioButton1")
-        self.windowRadioButton2 = QtWidgets.QRadioButton(self.inputTab)
-        self.windowRadioButton2.setGeometry(QtCore.QRect(880, 650, 95, 20))
-        self.windowRadioButton2.setObjectName("windowRadioButton2")
+        
+        
         self.label_14 = QtWidgets.QLabel(self.inputTab)
         self.label_14.setGeometry(QtCore.QRect(70, 700, 81, 16))
         font = QtGui.QFont()
@@ -321,6 +311,7 @@ class Ui_MainWindow(object):
         self.windowLayout2 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_10)
         self.windowLayout2.setContentsMargins(0, 0, 0, 0)
         self.windowLayout2.setObjectName("windowLayout2")
+        self.windowLayout2.addWidget(self.output_label2)
         self.label_12 = QtWidgets.QLabel(self.outputTab)
         self.label_12.setGeometry(QtCore.QRect(20, 10, 81, 16))
         font = QtGui.QFont()
@@ -336,6 +327,17 @@ class Ui_MainWindow(object):
         self.label_13.setFont(font)
         self.label_13.setObjectName("label_13")
         self.tabWidget.addTab(self.outputTab, "")
+        self.label_11 = QtWidgets.QLabel(self.outputTab)
+        self.label_11.setGeometry(QtCore.QRect(300, 650, 121, 16))
+        self.label_11.setFont(font)
+        self.label_11.setObjectName("label_11")
+        self.windowRadioButton1 = QtWidgets.QRadioButton(self.outputTab)
+        self.windowRadioButton1.setGeometry(QtCore.QRect(450, 650, 95, 20))
+        self.windowRadioButton1.setObjectName("windowRadioButton1")
+        self.windowRadioButton2 = QtWidgets.QRadioButton(self.outputTab)
+        self.windowRadioButton2.setGeometry(QtCore.QRect(600, 650, 95, 20))
+        self.windowRadioButton2.setObjectName("windowRadioButton2")
+        
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 1130, 26))
@@ -351,6 +353,15 @@ class Ui_MainWindow(object):
         self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
         self.mixingComboBox.currentIndexChanged.connect(lambda index: self.changemode(index))
+        self.images={
+            '':'',
+            'image1':None,
+            'image2':None,
+            'image3':None,
+            'image4':None,
+
+        }
+
         self.mixingdata ={
          'image1':{
             '':'',
@@ -406,6 +417,68 @@ class Ui_MainWindow(object):
           slider.setRange(0,100)
           slider.setValue(100)
           slider.valueChanged.connect(lambda value, range=i: self.adjustratio(value, range))
+        
+        
+        
+        self.regionSizeSlide.valueChanged.connect(lambda value: self.regionslice(value))
+        
+        self.windowRadioButton1.clicked.connect(self.on_windowRadioButton_clicked)
+        self.windowRadioButton2.clicked.connect(self.on_windowRadioButton_clicked)
+
+    
+    def regionslice(self,value):
+        if  (not self.outerRadioButton.isChecked()) and (not self.innerRadioButton.isChecked()):
+            return
+        
+        if self.innerRadioButton.isChecked():
+            for i in range(1,5):
+                imagename = f"image{i}"
+                if self.images[imagename] != None:
+                    self.images[imagename].regionsliceinner(value,self.currentmode)
+                    if self.currentmode==0:
+                        self.mixingdata[imagename]["Real"] = self.images[imagename].getcomponents("Real")
+                        self.mixingdata[imagename]["Imaginary"] = self.images[imagename].getcomponents("Imaginary")
+                    else:
+                        self.mixingdata[imagename]["Magnitude"] = self.images[imagename].getcomponents("Magnitude")
+                        self.mixingdata[imagename]["Phase"] = self.images[imagename].getcomponents("Phase")
+                    
+                    self.recover_image()
+                
+        elif self.outerRadioButton.isChecked():
+               for i in range(1,5):
+                imagename = f"image{i}"
+                if self.images[imagename] != None:
+                    self.images[imagename].regionsliceouter(value,self.currentmode)
+                    if self.currentmode ==0:
+                        self.mixingdata[imagename]["Real"] = self.images[imagename].getcomponents("Real")
+                        self.mixingdata[imagename]["Imaginary"] = self.images[imagename].getcomponents("Imaginary")
+                    else:
+                        self.mixingdata[imagename]["Magnitude"] = self.images[imagename].getcomponents("Magnitude")
+                        self.mixingdata[imagename]["Phase"] = self.images[imagename].getcomponents("Phase")
+                    self.recover_image()
+
+    
+                   
+            
+        
+            
+
+        
+        
+
+    def on_windowRadioButton_clicked(self):
+        # This method will be called when windowRadioButton1 is clicked
+        if self.windowRadioButton1.isChecked():
+            self.output_label2.remove_image()
+            if self.thereisimage:
+               self.recover_image()
+        elif self.windowRadioButton2.isChecked():
+            self.output_label1.remove_image()
+            if self.thereisimage:
+               self.recover_image()
+
+            
+
 
     def adjustratio(self, value, range):
         
@@ -424,8 +497,7 @@ class Ui_MainWindow(object):
 
 
 
-    def changemode(self, index):
-        
+    def changemode(self, index):   
         for i in range(1, 5):
             self.currentmode = index
             comboBox = f"comboBox{i}"
@@ -483,10 +555,7 @@ class Ui_MainWindow(object):
         self.verticalLayoutWidget_4.setGeometry(QtCore.QRect(570, 320, 271, 221))
         self.verticalLayoutWidget_4.setObjectName("verticalLayoutWidget_4")
          
-        self.arrayofimages=[]
         self.img_label1 = CustomLabel() 
-        
-        
         self.img_label2 = CustomLabel() 
         self.img_label3 = CustomLabel() 
         self.img_label4 = CustomLabel() 
@@ -495,8 +564,9 @@ class Ui_MainWindow(object):
         self.component_label2 = CustomLabel() 
         self.component_label3 = CustomLabel() 
         self.component_label4 = CustomLabel() 
+
         self.output_label1 = CustomLabel()
-        self.output_label1 = CustomLabel()
+        self.output_label2 = CustomLabel()
 
         
         # Set background color for the verticalLayoutWidget
@@ -504,18 +574,17 @@ class Ui_MainWindow(object):
 
         # Connect the doubleClicked signal to onDoubleClic
 
-        self.img_label1.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout1,self.componentLayout1,1))
-        self.img_label2.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout2,self.componentLayout2,2))
-        self.img_label3.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout3,self.componentLayout3,3))
-        self.img_label4.doubleClicked.connect(lambda: self.onDoubleClick(self.imgLayout4,self.componentLayout4,4))
+        self.img_label1.doubleClicked.connect(lambda: self.onDoubleClick(1))
+        self.img_label2.doubleClicked.connect(lambda: self.onDoubleClick(2))
+        self.img_label3.doubleClicked.connect(lambda: self.onDoubleClick(3))
+        self.img_label4.doubleClicked.connect(lambda: self.onDoubleClick(4))
 
-    def onDoubleClick(self, imgLayout,imgLayout2,index):
+    def onDoubleClick(self,index):
         options = QtWidgets.QFileDialog.Options()
         options |= QtWidgets.QFileDialog.ReadOnly
         image_path, _ = QtWidgets.QFileDialog.getOpenFileName(None, "Open Image File", "", "Images (*.png *.xpm *.jpg *.bmp *.gif)", options=options)
         if image_path:
-            
-            
+
             labelname1 = f"img_label{index}"
             imagelabel1 = getattr(self, labelname1, None)
             labelname2 = f"component_label{index}"
@@ -527,18 +596,20 @@ class Ui_MainWindow(object):
             self.mixingdata[imagename]["Phase"] = image.getorgcomponents("Phase")
             self.mixingdata[imagename]["Real"] = image.getorgcomponents("Real")
             self.mixingdata[imagename]["Imaginary"] = image.getorgcomponents("Imaginary")
+            self.images[imagename] = image
+            
             
             comboBox = f"comboBox{index}"
             comboBox_instance = getattr(self, comboBox, None)
             image.show_ft_component(comboBox_instance.currentText())
             comboBox_instance.currentIndexChanged.connect(lambda index: image.show_ft_component(comboBox_instance.currentText()))
-            imagelabel1.mouseMoveEvent(image.adjust_brightness_contrast)
+            
             imagelabel1.move_signal.connect(lambda x, y: image.adjust_brightness_contrast(x, y))
             self.thereisimage = True
             self.recover_image()
 
     def recover_image(self):
-           
+        if self.windowRadioButton1.isChecked() or self.windowRadioButton2.isChecked(): 
             # Assuming componentsimage is a NumPy array
             if self.currentmode == 0:
                 component1 =self.mixingdata["image1"]["Real"]*self.mixingdata["image1"]["RatioReal"] + 1j * self.mixingdata["image1"]["Imaginary"]*self.mixingdata["image1"]["RatioImaginary"]
@@ -561,9 +632,8 @@ class Ui_MainWindow(object):
             recovered_image = (componentsimage - np.min(componentsimage)) / (np.max(componentsimage) - np.min(componentsimage))
             recovered_image = (recovered_image * 255).astype(np.uint8)
 
-
             # Resize the image
-            resized_image = cv2.resize(recovered_image, (271, 221))
+            resized_image = cv2.resize(recovered_image, (271*2, 221*2))
 
             # Convert the NumPy array to a QImage
             height, width = resized_image.shape
@@ -571,20 +641,12 @@ class Ui_MainWindow(object):
 
             # Convert QImage to QPixmap
             pixmap = QtGui.QPixmap.fromImage(qt_image)
-
-            # Assuming self.ft_label is a QLabel where you want to display the recovered image
-            self.output_label1.setPixmap(pixmap)        
+            if self.windowRadioButton1.isChecked():
+                # Assuming self.ft_label is a QLabel where you want to display the recovered image
+                self.output_label1.setPixmap(pixmap)  
+            elif self.windowRadioButton2.isChecked(): 
+                self.output_label2.setPixmap(pixmap)  
         
-
-    def brightness_and_contrast(self,x, y, orgimage,imgLayout,imglabel):
-        image = orgimage.adjust_brightness_contrast(x,y)
-        # Set the desired size of the image
-        imglabel.remove_image()
-        self.set_image(image,imglabel)   
-        imgLayout.addWidget(imglabel)
-
-        
-        # Add the new QLabel to the imgLayout
         
     
 
@@ -608,6 +670,7 @@ class Ui_MainWindow(object):
         self.label_10.setText(_translate("MainWindow", "Region:"))
         self.outerRadioButton.setText(_translate("MainWindow", "Outer"))
         self.innerRadioButton.setText(_translate("MainWindow", "Inner"))
+
         self.label_11.setText(_translate("MainWindow", "Output Window :"))
         self.windowRadioButton1.setText(_translate("MainWindow", "Window 1"))
         self.windowRadioButton2.setText(_translate("MainWindow", "Window 2"))
